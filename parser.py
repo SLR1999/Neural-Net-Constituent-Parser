@@ -12,6 +12,6 @@ import torch.nn.functional as F
 
 START = "<START>"
 STOP = "<STOP>"
-UNK = "<UNK>"'
+UNK = "<UNK>"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
