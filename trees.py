@@ -1,9 +1,15 @@
 import collections.abc
 
 class TreebankNode(object):
+    '''
+    parent class for all kinds of TreeBank objects
+    '''
     pass
 
 class InternalTreebankNode(TreebankNode):
+    '''
+    represents a label for a part of the sentence (s[i:j], i != j)
+    '''
     def __init__(self, label, children):
         self.label = label
         self.children = tuple(children)
@@ -22,16 +28,23 @@ class InternalTreebankNode(TreebankNode):
 
         while len(tree.children) == 1 and isinstance(tree.children[0], InternalTreebankNode):
             tree = tree.children[0]
-            sublabels.append(tree.label)
+            sublabels.append(tree.label) 
+            # when a part of the tree in linear , and I think this happens only when the internal node
+            # has "no label (phi)". that is why the tree also gets assigned to its only child, until it has more than one child
 
         children = []
+        # this recursively assigns indices to children. The left most leaf gets (0,1), and then the next leaf (1,2) and so on.
+        # the internal nodes get (left most index in subtree, right most index in subtree)
         for child in tree.children:
             children.append(child.convert(index=index))
-            index = children[-1].right
+            index = children[-1].right # the index of the rightmost child
 
         return InternalParseNode(tuple(sublabels), children)
 
 class LeafTreebankNode(TreebankNode):
+    '''
+    represents one word in the sentence, along with it's tag
+    '''
     def __init__(self, tag, word):
         self.tag = tag
         self.word = word
@@ -52,9 +65,8 @@ class InternalParseNode(ParseNode):
     def __init__(self, label, children):
         self.label = label
         self.children = tuple(children)
-
-        self.left = children[0].left
-        self.right = children[-1].right
+        self.left = children[0].left  #index of the left most leaf in sub tree
+        self.right = children[-1].right # index of right most leaf in sub tree
 
     def leaves(self):
         for child in self.children:
@@ -68,6 +80,7 @@ class InternalParseNode(ParseNode):
         return tree
 
     def enclosing(self, left, right):
+        # returns internal node for s[left : right]
         for child in self.children:
             if isinstance(child, LeafParseNode):
                 continue
@@ -76,12 +89,14 @@ class InternalParseNode(ParseNode):
         return self
 
     def oracle_label(self, left, right):
+        # returns label for s[left : right]
         enclosing = self.enclosing(left, right)
         if enclosing.left == left and enclosing.right == right:
             return enclosing.label
         return ()
 
     def oracle_splits(self, left, right):
+        # returns the index at which the current part of sentence has been split
         return [
             child.left
             for child in self.enclosing(left, right).children
@@ -102,9 +117,17 @@ class LeafParseNode(ParseNode):
         return LeafTreebankNode(self.tag, self.word)
 
 def load_trees(path, strip_top=True):
+    '''
+    A recursive function used to load the tree from the dataset. 
+
+    Base Case : create a LeafTreebankNode object when there are no more children (interpreted as 
+    when no opening "(" bracket is encountered)
+
+    Recursion : creates an InternalTreebankNode with the label for that past of the sentence and 
+    calls recursively for the children 
+    '''
     with open(path) as infile:
         tokens = infile.read().replace("(", " ( ").replace(")", " ) ").split()
-
     def helper(index):
         trees = []
 
