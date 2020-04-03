@@ -18,6 +18,9 @@ class InternalTreebankNode(TreebankNode):
         return "({} {})".format(
             self.label, " ".join(child.linearize() for child in self.children))
 
+    def sentencify(self):
+        return "{}".format(" ".join(child.sentencify() for child in self.children))
+
     def leaves(self):
         for child in self.children:
             yield from child.leaves()
@@ -51,6 +54,9 @@ class LeafTreebankNode(TreebankNode):
 
     def linearize(self):
         return "({} {})".format(self.tag, self.word)
+
+    def sentencify(self):
+        return "{}".format(self.word)
 
     def leaves(self):
         yield self
