@@ -47,12 +47,12 @@ def evalb(evalb_dir, gold_trees, predicted_trees):
 
     with open(gold_path, "w+") as outfile:
         for tree in gold_trees:
-            print(tree.linearize())
+            # print(tree.linearize())
             outfile.write("{}\n".format(tree.linearize()))
 
     with open(predicted_path, "w+") as outfile:
         for tree in predicted_trees:
-            print(tree.linearize())
+            # print(tree.linearize())
             outfile.write("{}\n".format(tree.linearize()))
 
     command = "{} -p {} {} {} > {}".format(
