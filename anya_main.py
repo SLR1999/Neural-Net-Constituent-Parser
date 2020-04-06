@@ -158,9 +158,9 @@ def run_train(args):
                 total_processed += 1
                 current_processed += 1
 
-            batch_loss = torch.mean(batch_losses)
-            batch_loss_value = batch_loss.item()
-            batch_loss.backward()
+            batch_losses = torch.tensor(batch_losses)
+            batch_loss_value = torch.mean(batch_losses)
+            batch_losses.mean().backward()
             trainer.step()
 
             print(

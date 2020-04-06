@@ -78,6 +78,13 @@ class TopDownParser(nn.Module):
 
         is_train = gold is not None
 
+        if is_train:
+            #enable dropout in lstm
+            pass
+        else:
+            #disable dropout in lstm
+            torch.no_grad()
+
         embeddings = []
         for tag, word in [(START, START)] + sentence + [(STOP, STOP)]:
             tag_embedding = self.tag_embeddings[self.tag_vocab.index(tag)]
@@ -107,6 +114,7 @@ class TopDownParser(nn.Module):
             assert 0 <= left < right <= len(sentence)
 
             label_scores = self.f_label(get_span_encoding(left, right))
+            label_scores.requires_grad_(True)
 
             if is_train:
                 oracle_label = gold.oracle_label(left, right) 
@@ -149,6 +157,7 @@ class TopDownParser(nn.Module):
             left_scores = torch.tensor([self.f_split(torch.tensor(encoding)).item() for encoding in left_encodings])
             right_scores = torch.tensor([self.f_split(torch.tensor(encoding)).item() for encoding in right_encodings])
             split_scores = left_scores + right_scores
+            split_scores.requires_grad_(True)
             # print("split scores : ")
             # print(split_scores)
             if is_train:
