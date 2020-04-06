@@ -3,7 +3,6 @@ import os.path
 import re
 import subprocess
 import tempfile
-
 import trees
 
 # Evalb : This is a bracket scoring program. It reports precision, recall, F-measure, 
@@ -41,16 +40,19 @@ def evalb(evalb_dir, gold_trees, predicted_trees):
     # tempfile.TemporaryDirectory(suffix=None, prefix=None, dir=None)¶
     # This function securely creates a temporary directory. The resulting object can 
     # be used as a context manager
+    output_dir = "outputs"
     gold_path = os.path.join(temp_dir.name, "gold.txt")
     predicted_path = os.path.join(temp_dir.name, "predicted.txt")
-    output_path = os.path.join(temp_dir.name, "output.txt")
+    output_path = os.path.join(output_dir, "output.txt")
 
-    with open(gold_path, "w") as outfile:
+    with open(gold_path, "w+") as outfile:
         for tree in gold_trees:
+            print(tree.linearize())
             outfile.write("{}\n".format(tree.linearize()))
 
-    with open(predicted_path, "w") as outfile:
+    with open(predicted_path, "w+") as outfile:
         for tree in predicted_trees:
+            print(tree.linearize())
             outfile.write("{}\n".format(tree.linearize()))
 
     command = "{} -p {} {} {} > {}".format(

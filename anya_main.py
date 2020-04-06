@@ -114,7 +114,10 @@ def run_train(args):
             sentence = [(leaf.tag, leaf.word) for leaf in tree.leaves()]
             predicted, _ = parser.parse(sentence)
             dev_predicted.append(predicted.convert())
-
+        print("treebank : ")
+        print(dev_treebank)
+        print("predicted : ")
+        print(dev_predicted)
         dev_fscore = evaluate.evalb(args.evalb_dir, dev_treebank, dev_predicted)
 
         print(
@@ -154,11 +157,12 @@ def run_train(args):
             for tree in train_parse[start_index:start_index + args.batch_size]:
                 sentence = [(leaf.tag, leaf.word) for leaf in tree.leaves()]
                 _, loss = parser.parse(sentence, tree)
+                loss.requires_grad_(True)
                 batch_losses.append(loss)
                 total_processed += 1
                 current_processed += 1
 
-            batch_losses = torch.tensor(batch_losses)
+            batch_losses = torch.tensor(batch_losses,requires_grad = True)
             batch_loss_value = torch.mean(batch_losses)
             batch_losses.mean().backward()
             trainer.step()
@@ -226,7 +230,7 @@ def main():
     parser.add_argument("--split-hidden-dim", type=int, default=250)
     parser.add_argument("--dropout", type=float, default=0.4)
     parser.add_argument("--explore", action="store_true", default=True)
-    parser.add_argument("--model-path-base", default="model/")
+    parser.add_argument("--model-path-base", default="model/best.pt")
     parser.add_argument("--evalb-dir", default="EVALB/")
     parser.add_argument("--train-path", default="data/02-21.10way.clean")
     parser.add_argument("--dev-path", default="data/22.auto.clean")
