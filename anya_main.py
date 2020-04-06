@@ -225,7 +225,7 @@ def main():
     parser.add_argument("--label-hidden-dim", type=int, default=250)
     parser.add_argument("--split-hidden-dim", type=int, default=250)
     parser.add_argument("--dropout", type=float, default=0.4)
-    parser.add_argument("--explore", action="store_true")
+    parser.add_argument("--explore", action="store_true", default=True)
     parser.add_argument("--model-path-base", default="model/")
     parser.add_argument("--evalb-dir", default="EVALB/")
     parser.add_argument("--train-path", default="data/02-21.10way.clean")

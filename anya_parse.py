@@ -146,10 +146,11 @@ class TopDownParser(nn.Module):
             for split in range(left + 1, right):
                 left_encodings.append(get_span_encoding(left, split).tolist())
                 right_encodings.append(get_span_encoding(split, right).tolist())
-            left_scores = [self.f_split(torch.tensor(encoding)).item() for encoding in left_encodings]
-            right_scores = [self.f_split(torch.tensor(encoding)).item() for encoding in right_encodings]
-            split_scores = torch.tensor(left_scores + right_scores)
-
+            left_scores = torch.tensor([self.f_split(torch.tensor(encoding)).item() for encoding in left_encodings])
+            right_scores = torch.tensor([self.f_split(torch.tensor(encoding)).item() for encoding in right_encodings])
+            split_scores = left_scores + right_scores
+            # print("split scores : ")
+            # print(split_scores)
             if is_train:
                 oracle_splits = gold.oracle_splits(left, right)
                 oracle_split = min(oracle_splits)
@@ -159,6 +160,7 @@ class TopDownParser(nn.Module):
             split_scores_np = split_scores.detach().numpy()
             argmax_split_index = int(split_scores_np.argmax())
             argmax_split = argmax_split_index + (left + 1)
+            # print(argmax_split)
 
             if is_train:
                 split = argmax_split if explore else oracle_split
@@ -170,6 +172,7 @@ class TopDownParser(nn.Module):
                 split = argmax_split
                 split_loss = split_scores[argmax_split_index]
 
+            # print("left = ", left , "split = ", split, "right = ", right)
             left_trees, left_loss = helper(left, split)
             right_trees, right_loss = helper(split, right)
 
