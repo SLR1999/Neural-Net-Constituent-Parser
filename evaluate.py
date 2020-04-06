@@ -6,6 +6,9 @@ import tempfile
 
 import trees
 
+# Evalb : This is a bracket scoring program. It reports precision, recall, F-measure, 
+# non crossing and tagging accuracy for given data.
+
 class FScore(object):
     def __init__(self, recall, precision, fscore):
         self.recall = recall
@@ -35,6 +38,9 @@ def evalb(evalb_dir, gold_trees, predicted_trees):
             for gold_leaf, predicted_leaf in zip(gold_leaves, predicted_leaves))
 
     temp_dir = tempfile.TemporaryDirectory(prefix="evalb-")
+    # tempfile.TemporaryDirectory(suffix=None, prefix=None, dir=None)¶
+    # This function securely creates a temporary directory. The resulting object can 
+    # be used as a context manager
     gold_path = os.path.join(temp_dir.name, "gold.txt")
     predicted_path = os.path.join(temp_dir.name, "predicted.txt")
     output_path = os.path.join(temp_dir.name, "output.txt")
