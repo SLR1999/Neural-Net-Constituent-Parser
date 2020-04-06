@@ -189,6 +189,10 @@ class TopDownParser(nn.Module):
             if label:
                 children = [trees.InternalParseNode(label, children)]
 
+            label_loss.requires_grad_(True)
+            split_loss.requires_grad_(True)
+            left_loss.requires_grad_(True)
+            right_loss.requires_grad_(True)
             return children, label_loss + split_loss + left_loss + right_loss
 
         children, loss = helper(0, len(sentence))
