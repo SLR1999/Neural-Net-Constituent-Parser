@@ -5,6 +5,7 @@ import time
 
 import dynet as dy
 import numpy as np
+import torch
 
 import evaluate
 import anya_parse as parse
@@ -79,41 +80,37 @@ def run_train(args):
         print_vocabulary("Label", label_vocab)
 
     print("Initializing model...")
-    model = dy.ParameterCollection()
-    if args.parser_type == "top-down":
-        parser = parse.TopDownParser(
-            tag_vocab,
-            word_vocab,
-            label_vocab,
-            args.tag_embedding_dim,
-            args.word_embedding_dim,
-            args.lstm_layers,
-            args.lstm_dim,
-            args.label_hidden_dim,
-            args.split_hidden_dim,
-            args.dropout,
-        )
-    else:
-        raise NotImplementedError
-    trainer = dy.AdamTrainer(model)
+    parser = parse.TopDownParser(
+        tag_vocab,
+        word_vocab,
+        label_vocab,
+        args.tag_embedding_dim,
+        args.word_embedding_dim,
+        args.lstm_layers,
+        args.lstm_dim,
+        args.label_hidden_dim,
+        args.split_hidden_dim,
+        args.dropout,
+    )
+    # trainer = dy.AdamTrainer(model)
+    learning_rate = 1e-4
+    trainer = torch.optim.Adam(parser.parameters(), lr=learning_rate)
 
     total_processed = 0
     current_processed = 0
     check_every = len(train_parse) / args.checks_per_epoch
-    best_dev_fscore = -np.inf
-    best_dev_model_path = None
 
     start_time = time.time()
 
     def check_dev():
-        nonlocal best_dev_fscore
-        nonlocal best_dev_model_path
+        best_dev_fscore = 0
+        best_dev_model_path = None
 
         dev_start_time = time.time()
 
         dev_predicted = []
         for tree in dev_treebank:
-            dy.renew_cg()
+            # dy.renew_cg()
             sentence = [(leaf.tag, leaf.word) for leaf in tree.leaves()]
             predicted, _ = parser.parse(sentence)
             dev_predicted.append(predicted.convert())
@@ -142,7 +139,7 @@ def run_train(args):
             best_dev_model_path = "{}_dev={:.2f}".format(
                 args.model_path_base, dev_fscore.fscore)
             print("Saving new best model to {}...".format(best_dev_model_path))
-            dy.save(best_dev_model_path, [parser])
+            torch.save(parser.state_dict(), best_dev_model_path)
 
     for epoch in itertools.count(start=1):
         if args.epochs is not None and epoch > args.epochs:
@@ -152,22 +149,19 @@ def run_train(args):
         epoch_start_time = time.time()
 
         for start_index in range(0, len(train_parse), args.batch_size):
-            dy.renew_cg()
+            trainer.zero_grad()
             batch_losses = []
             for tree in train_parse[start_index:start_index + args.batch_size]:
                 sentence = [(leaf.tag, leaf.word) for leaf in tree.leaves()]
-                if args.parser_type == "top-down":
-                    _, loss = parser.parse(sentence, tree, args.explore)
-                else:
-                    _, loss = parser.parse(sentence, tree)
+                _, loss = parser.parse(sentence, tree)
                 batch_losses.append(loss)
                 total_processed += 1
                 current_processed += 1
 
-            batch_loss = dy.average(batch_losses)
-            batch_loss_value = batch_loss.scalar_value()
+            batch_loss = torch.mean(batch_losses)
+            batch_loss_value = batch_loss.item()
             batch_loss.backward()
-            trainer.update()
+            trainer.step()
 
             print(
                 "epoch {:,} "
@@ -221,52 +215,35 @@ def run_test(args):
     )
 
 def main():
-    dynet_args = [
-        "--dynet-mem",
-        "--dynet-weight-decay",
-        "--dynet-autobatch",
-        "--dynet-gpus",
-        "--dynet-gpu",
-        "--dynet-devices",
-        "--dynet-seed",
-    ]
 
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers()
+    parser.add_argument("--numpy-seed", type=int, default=50)
+    parser.add_argument("--tag-embedding-dim", type=int, default=50)
+    parser.add_argument("--word-embedding-dim", type=int, default=100)
+    parser.add_argument("--lstm-layers", type=int, default=2)
+    parser.add_argument("--lstm-dim", type=int, default=250)
+    parser.add_argument("--label-hidden-dim", type=int, default=250)
+    parser.add_argument("--split-hidden-dim", type=int, default=250)
+    parser.add_argument("--dropout", type=float, default=0.4)
+    parser.add_argument("--explore", action="store_true")
+    parser.add_argument("--model-path-base", default="model/")
+    parser.add_argument("--evalb-dir", default="EVALB/")
+    parser.add_argument("--train-path", default="data/02-21.10way.clean")
+    parser.add_argument("--dev-path", default="data/22.auto.clean")
+    parser.add_argument("--batch-size", type=int, default=10)
+    parser.add_argument("--epochs", type=int)
+    parser.add_argument("--checks-per-epoch", type=int, default=4)
+    parser.add_argument("--print-vocabs", action="store_true")
 
-    subparser = subparsers.add_parser("train")
-    subparser.set_defaults(callback=run_train)
-    for arg in dynet_args:
-        subparser.add_argument(arg)
-    subparser.add_argument("--numpy-seed", type=int)
-    subparser.add_argument("--parser-type", choices=["top-down", "chart"], required=True)
-    subparser.add_argument("--tag-embedding-dim", type=int, default=50)
-    subparser.add_argument("--word-embedding-dim", type=int, default=100)
-    subparser.add_argument("--lstm-layers", type=int, default=2)
-    subparser.add_argument("--lstm-dim", type=int, default=250)
-    subparser.add_argument("--label-hidden-dim", type=int, default=250)
-    subparser.add_argument("--split-hidden-dim", type=int, default=250)
-    subparser.add_argument("--dropout", type=float, default=0.4)
-    subparser.add_argument("--explore", action="store_true")
-    subparser.add_argument("--model-path-base", required=True)
-    subparser.add_argument("--evalb-dir", default="EVALB/")
-    subparser.add_argument("--train-path", default="data/02-21.10way.clean")
-    subparser.add_argument("--dev-path", default="data/22.auto.clean")
-    subparser.add_argument("--batch-size", type=int, default=10)
-    subparser.add_argument("--epochs", type=int)
-    subparser.add_argument("--checks-per-epoch", type=int, default=4)
-    subparser.add_argument("--print-vocabs", action="store_true")
-
-    subparser = subparsers.add_parser("test")
-    subparser.set_defaults(callback=run_test)
-    for arg in dynet_args:
-        subparser.add_argument(arg)
-    subparser.add_argument("--model-path-base", required=True)
-    subparser.add_argument("--evalb-dir", default="EVALB/")
-    subparser.add_argument("--test-path", default="data/23.auto.clean")
+    # parser = parsers.add_parser("test")
+    # parser.set_defaults(callback=run_test)
+    # parser.add_argument("--model-path-base", required=True)
+    # parser.add_argument("--evalb-dir", default="EVALB/")
+    # parser.add_argument("--test-path", default="data/23.auto.clean")
 
     args = parser.parse_args()
-    args.callback(args)
+    # args.callback(args)
+    run_train(args)
 
 if __name__ == "__main__":
     main()
