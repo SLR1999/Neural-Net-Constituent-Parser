@@ -115,7 +115,7 @@ def run_train(args):
             sentence = [(leaf.tag, leaf.word) for leaf in tree.leaves()]
             predicted, _ = parser.parse(sentence)
             dev_predicted.append(predicted.convert())
-            
+
         dev_fscore = evaluate.evalb(args.evalb_dir, dev_treebank, dev_predicted)
 
         print(
@@ -234,8 +234,7 @@ def main():
     parser.add_argument("--dev-path", default="data/22.auto.clean")
     parser.add_argument("--batch-size", type=int, default=10)
     parser.add_argument("--epochs", type=int)
-    parser.add_argument("--checks-per-epoch", type=int, default=4000
-    )
+    parser.add_argument("--checks-per-epoch", type=int, default=4)
     parser.add_argument("--print-vocabs", action="store_true")
 
     # parser = parsers.add_parser("test")
