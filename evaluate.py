@@ -4,6 +4,7 @@ import re
 import subprocess
 import tempfile
 import trees
+from PYEVALB import scorer
 
 # Evalb : This is a bracket scoring program. It reports precision, recall, F-measure, 
 # non crossing and tagging accuracy for given data.
@@ -55,25 +56,27 @@ def evalb(evalb_dir, gold_trees, predicted_trees):
             # print(tree.linearize())
             outfile.write("{}\n".format(tree.linearize()))
 
-    command = "{} -p {} {} {} > {}".format(
-        evalb_program_path,
-        evalb_param_path,
-        gold_path,
-        predicted_path,
-        output_path,
-    )
-    subprocess.run(command, shell=True)
+    s = scorer.Scorer()
+    s.evalb(gold_path, predicted_path, output_path)
+    # command = "{} -p {} {} {} > {}".format(
+    #     evalb_program_path,
+    #     evalb_param_path,
+    #     gold_path,
+    #     predicted_path,
+    #     output_path,
+    # )
+    # subprocess.run(command, shell=True)
 
     fscore = FScore(math.nan, math.nan, math.nan)
     with open(output_path) as infile:
         for line in infile:
-            match = re.match(r"Bracketing Recall\s+=\s+(\d+\.\d+)", line)
+            match = re.match(r"Bracketing Recall:\s*(\d+\.\d+)", line)
             if match:
                 fscore.recall = float(match.group(1))
-            match = re.match(r"Bracketing Precision\s+=\s+(\d+\.\d+)", line)
+            match = re.match(r"Bracketing Precision:\s*(\d+\.\d+)", line)
             if match:
                 fscore.precision = float(match.group(1))
-            match = re.match(r"Bracketing FMeasure\s+=\s+(\d+\.\d+)", line)
+            match = re.match(r"Bracketing FMeasure:\s*(\d+\.\d+)", line)
             if match:
                 fscore.fscore = float(match.group(1))
                 break
