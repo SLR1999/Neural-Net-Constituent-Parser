@@ -138,7 +138,7 @@ import time
 import numpy as np
 import torch
 
-import ssm_evaluate as evaluate
+import evaluate
 import ssm_parser as parse
 import trees
 import vocabulary

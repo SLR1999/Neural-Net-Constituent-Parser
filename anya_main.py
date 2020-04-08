@@ -111,13 +111,11 @@ def run_train(args):
         dev_predicted = []
         for tree in dev_treebank:
             # dy.renew_cg()
+            trainer.zero_grad()
             sentence = [(leaf.tag, leaf.word) for leaf in tree.leaves()]
             predicted, _ = parser.parse(sentence)
             dev_predicted.append(predicted.convert())
-        print("treebank : ")
-        print(dev_treebank)
-        print("predicted : ")
-        print(dev_predicted)
+
         dev_fscore = evaluate.evalb(args.evalb_dir, dev_treebank, dev_predicted)
 
         print(
@@ -194,7 +192,7 @@ def run_test(args):
     print("Loaded {:,} test examples.".format(len(test_treebank)))
 
     print("Loading model from {}...".format(args.model_path_base))
-    model = dy.ParameterCollection()
+    # model = dy.ParameterCollection()
     [parser] = dy.load(args.model_path_base, model)
 
     print("Parsing test sentences...")
