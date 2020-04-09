@@ -5,7 +5,7 @@ class Vocabulary(object):
         self.frozen = False
         self.values = []
         self.indices = {}
-        self.counts = collections.defaultdict(int) 
+        self.counts = collections.defaultdict(int)
 
     @property
     def size(self):

@@ -15,6 +15,9 @@ class FScore(object):
         self.precision = precision
         self.fscore = fscore
 
+    def print_score(self):
+        return "Recall: {:.2f} Precision: {:.2f} FScore: {:.2f}".format(
+            self.recall, self.precision, self.fscore)
     def __str__(self):
         return "(Recall={:.2f}, Precision={:.2f}, FScore={:.2f})".format(
             self.recall, self.precision, self.fscore)
@@ -44,17 +47,24 @@ def evalb(evalb_dir, gold_trees, predicted_trees):
     output_dir = "outputs"
     gold_path = os.path.join(temp_dir.name, "gold.txt")
     predicted_path = os.path.join(temp_dir.name, "predicted.txt")
-    output_path = os.path.join(output_dir, "output.txt")
+    output_path = os.path.join(output_dir, "output_test.txt")
 
+    num = 0
     with open(gold_path, "w+") as outfile:
         for tree in gold_trees:
-            # print(tree.linearize())
+            if num < 5:
+                print("Gold tree #{}: {}".format(num+1,tree.linearize()))
+                num += 1
             outfile.write("{}\n".format(tree.linearize()))
 
+    num = 0
     with open(predicted_path, "w+") as outfile:
         for tree in predicted_trees:
-            # print(tree.linearize())
+            if num < 5:
+                print("Predicted tree #{}: {}".format(num+1,tree.linearize()))
+                num += 1
             outfile.write("{}\n".format(tree.linearize()))
+
 
     s = scorer.Scorer()
     s.evalb(gold_path, predicted_path, output_path)
@@ -68,6 +78,7 @@ def evalb(evalb_dir, gold_trees, predicted_trees):
     # subprocess.run(command, shell=True)
 
     fscore = FScore(math.nan, math.nan, math.nan)
+
     with open(output_path) as infile:
         for line in infile:
             match = re.match(r"Bracketing Recall:\s*(\d+\.\d+)", line)
@@ -87,6 +98,8 @@ def evalb(evalb_dir, gold_trees, predicted_trees):
         fscore.precision == 0.0)
 
     if success:
+        with open("outputs/fscore_test.txt",'a',encoding = 'utf-8') as f:
+            f.write(fscore.print_score() + "\n")
         temp_dir.cleanup()
     else:
         print("Error reading EVALB results.")

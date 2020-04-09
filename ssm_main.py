@@ -137,9 +137,11 @@ import time
 
 import numpy as np
 import torch
+from torch.autograd import Variable
 
 import evaluate
 import ssm_parser as parse
+# import parse
 import trees
 import vocabulary
 
@@ -210,6 +212,9 @@ def run_train(args):
         print_vocabulary("Word", word_vocab)
         print_vocabulary("Label", label_vocab)
 
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
     print("Initializing model...")
     parser = parse.TopDownParser(
         tag_vocab,
@@ -223,9 +228,9 @@ def run_train(args):
         args.split_hidden_dim,
         args.dropout,
     )
-
-    learning_rate = 1e-4
-    optimizer = torch.optim.Adam(parser.parameters(), lr=learning_rate)
+    print(count_parameters(parser))
+    # learning_rate = 1e-4
+    optimizer = torch.optim.Adam(parser.parameters())#, lr=learning_rate)
 
     total_processed = 0
     current_processed = 0
@@ -241,15 +246,12 @@ def run_train(args):
 
         dev_predicted = []
         for tree in dev_treebank:
-            optimizer.zero_grad()
+            parser.eval()
             sentence = [(leaf.tag, leaf.word) for leaf in tree.leaves()]
             predicted, _ = parser.forward(sentence)
             dev_predicted.append(predicted.convert())
-        # print("treebank : ")
-        # print(dev_treebank)
-        # print("predicted : ")
-        # print(dev_predicted)
-        dev_fscore = evaluate.evalb(dev_treebank, args.dev_path, dev_predicted)
+
+        dev_fscore = evaluate.evalb(args.evalb_dir, dev_treebank, dev_predicted)
 
         print(
             "dev-fscore {} "
@@ -273,7 +275,7 @@ def run_train(args):
             best_dev_model_path = "{}_dev={:.2f}".format(
                 args.model_path_base, dev_fscore.fscore)
             print("Saving new best model to {}...".format(best_dev_model_path))
-            torch.save(parser.state_dict(), best_dev_model_path)
+            torch.save(parser, best_dev_model_path)
 
     for epoch in itertools.count(start=1):
         if args.epochs is not None and epoch > args.epochs:
@@ -284,19 +286,29 @@ def run_train(args):
 
         for start_index in range(0, len(train_parse), args.batch_size):
             optimizer.zero_grad()
+            parser.eval()
             batch_losses = []
             for tree in train_parse[start_index:start_index + args.batch_size]:
                 sentence = [(leaf.tag, leaf.word) for leaf in tree.leaves()]
-                _, loss = parser.forward(sentence, tree)
-                loss.requires_grad_(True)
+                _, loss = parser.forward(sentence, tree, args.explore)
+
                 batch_losses.append(loss)
                 total_processed += 1
                 current_processed += 1
 
-            batch_losses = torch.tensor(batch_losses,requires_grad = True)
-            batch_loss_value = torch.mean(batch_losses)
-            batch_losses.mean().backward()
-            optimizer.step()
+            try:
+                # batch_losses = Variable(torch.tensor(batch_losses),requires_grad = True)
+                batch_loss = torch.stack(batch_losses).mean()
+                batch_loss_value = batch_loss.item()
+                with open("outputs/batch_loss.txt",'a',encoding = 'utf-8') as f:
+                    f.write("Total processed: "+str(total_processed)+" Batch loss: "+str(batch_loss_value) + "\n")
+                f.close()
+                # batch_loss_value = torch.mean(batch_losses)
+                # batch_losses.mean().backward()
+                batch_loss.backward()
+                optimizer.step()
+            except:
+                continue
 
             print(
                 "epoch {:,} "
@@ -335,7 +347,7 @@ def run_test(args):
     for tree in test_treebank:
         parser.eval()
         sentence = [(leaf.tag, leaf.word) for leaf in tree.leaves()]
-        predicted, _ = parser.parse(sentence)
+        predicted, _ = parser.forward(sentence)
         test_predicted.append(predicted.convert())
 
     test_fscore = evaluate.evalb(args.evalb_dir, test_treebank, test_predicted)
@@ -351,34 +363,34 @@ def run_test(args):
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--numpy-seed", type=int, default=50)
-    parser.add_argument("--tag-embedding-dim", type=int, default=50)
-    parser.add_argument("--word-embedding-dim", type=int, default=100)
-    parser.add_argument("--lstm-layers", type=int, default=2)
-    parser.add_argument("--lstm-dim", type=int, default=250)
-    parser.add_argument("--label-hidden-dim", type=int, default=250)
-    parser.add_argument("--split-hidden-dim", type=int, default=250)
-    parser.add_argument("--dropout", type=float, default=0.4)
-    parser.add_argument("--explore", action="store_true", default=True)
-    parser.add_argument("--model-path-base", default="model/best.pt")
+    # parser.add_argument("--numpy-seed", type=int, default=50)
+    # parser.add_argument("--tag-embedding-dim", type=int, default=50)
+    # parser.add_argument("--word-embedding-dim", type=int, default=100)
+    # parser.add_argument("--lstm-layers", type=int, default=2)
+    # parser.add_argument("--lstm-dim", type=int, default=250)
+    # parser.add_argument("--label-hidden-dim", type=int, default=250)
+    # parser.add_argument("--split-hidden-dim", type=int, default=250)
+    # parser.add_argument("--dropout", type=float, default=0.4)
+    # parser.add_argument("--explore", action="store_true")
+    parser.add_argument("--model-path-base", default="model/best.pt_dev=87.77")
     parser.add_argument("--evalb-dir", default="EVALB/")
     # parser.add_argument("--train-path", default="data/02-21.10way.clean")
-    parser.add_argument("--train-path", default="data/22.auto.clean")
-    parser.add_argument("--dev-path", default="data/22.auto.clean")
-    parser.add_argument("--batch-size", type=int, default=10)
-    parser.add_argument("--epochs", type=int, default=1)
-    parser.add_argument("--checks-per-epoch", type=int, default=4)
-    parser.add_argument("--print-vocabs", action="store_true")
+    # parser.add_argument("--dev-path", default="data/22.auto.clean")
+    # parser.add_argument("--batch-size", type=int, default=10)
+    # parser.add_argument("--epochs", type=int, default=5)
+    # parser.add_argument("--checks-per-epoch", type=int, default=39)
+    # parser.add_argument("--print-vocabs", action="store_true")
 
     # parser = parsers.add_parser("test")
     # parser.set_defaults(callback=run_test)
     # parser.add_argument("--model-path-base", required=True)
     # parser.add_argument("--evalb-dir", default="EVALB/")
-    # parser.add_argument("--test-path", default="data/23.auto.clean")
+    parser.add_argument("--test-path", default="data/23.auto.clean")
 
     args = parser.parse_args()
     # args.callback(args)
-    run_train(args)
+    # run_train(args)
+    run_test(args)
 
 if __name__ == "__main__":
     main()

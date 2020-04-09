@@ -20,17 +20,6 @@ def augment(scores, oracle_index):
     increment = torch.FloatTensor(increment)
     return scores + increment
 
-
-# def augment(scores, oracle_index):
-#     """Adds the hamming loss to the wrong labels"""
-#     print("(Augment function) Size of scores tensor: {}".format(scores.size()))
-#     shape = list(scores.size())[0]
-# #     increment = torch.ones(shape)
-#     increment = torch.ones(shape,1)
-#     increment[oracle_index] = 0
-#     print("(Augment function) scores: {}".format(scores))
-#     return scores + Variable(increment)
-
 # class Feedforward(nn.Module):
 #     def __init__(self, input_dim, hidden_dims, output_dim):
 #         super(Feedforward, self).__init__()
@@ -145,8 +134,8 @@ class TopDownParser(nn.Module):
             backward = (
                 lstm_outputs[left + 1][0][self.lstm_dim:] -
                 lstm_outputs[right + 1][0][self.lstm_dim:])
-            return torch.tensor(torch.cat((forward,backward),0).tolist())
-#             return torch.cat([forward, backward])
+            # return torch.tensor(torch.cat((forward,backward),0).tolist())
+            return torch.cat([forward, backward])
 
         def helper(left, right):
             label_scores = self.f_label(get_span_encoding(left, right))
@@ -184,12 +173,19 @@ class TopDownParser(nn.Module):
             left_encodings = []
             right_encodings = []
             for split in range(left + 1, right):
-                left_encodings.append(get_span_encoding(left, split).tolist())
-                right_encodings.append(get_span_encoding(split, right).tolist())
+                left_encodings.append(get_span_encoding(left, split))
+                right_encodings.append(get_span_encoding(split, right))
                 
-            left_scores = torch.tensor([self.f_split(torch.tensor(encoding)).item() for encoding in left_encodings])
-            right_scores = torch.tensor([self.f_split(torch.tensor(encoding)).item() for encoding in right_encodings])
+            # left_scores = torch.tensor([self.f_split(torch.tensor(encoding)).item() for encoding in left_encodings])
+            # right_scores = torch.tensor([self.f_split(torch.tensor(encoding)).item() for encoding in right_encodings])
+            # split_scores = left_scores + right_scores
+            # split_scores.requires_grad_(True)
+
+            left_scores = self.f_split(torch.stack(left_encodings))
+            right_scores = self.f_split(torch.stack(right_encodings))
             split_scores = left_scores + right_scores
+
+            split_scores = split_scores.view(len(left_encodings))
             split_scores.requires_grad_(True)
 
             #need to check dimensions here
